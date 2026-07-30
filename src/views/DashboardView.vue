@@ -38,7 +38,7 @@
     <div class="grid-layout">
       <!-- 취합 리스트 (배달앱 주문용) -->
       <section class="card">
-        <h2 class="title-medium mb-4">배달앱 주문용 취합 리스트</h2>
+        <h2 class="title-medium mb-4">📋 배달앱 주문용 취합 리스트 (실시간)</h2>
         <div v-if="groupedOrders.length === 0" class="empty-text">접수된 주문이 없습니다.</div>
         <ul v-else class="grouped-list">
           <li v-for="(item, index) in groupedOrders" :key="index" class="grouped-item">
@@ -55,7 +55,7 @@
 
       <!-- 개별 주문 내역 -->
       <section class="card">
-        <h2 class="title-medium mb-4">팀원 개별 주문 내역</h2>
+        <h2 class="title-medium mb-4">👥 팀원 개별 주문 내역 (실시간)</h2>
         <div v-if="orders.length === 0" class="empty-text">주문 내역이 없습니다.</div>
         <ul v-else class="user-list">
           <li v-for="(user, index) in orders" :key="index" class="user-item">
@@ -79,10 +79,11 @@ const isClosed = ref(false);
 const orders = ref([]);
 let timer = null;
 
-// 백엔드에서 실시간 주문 목록 가져오기
+// 백엔드 API에서 실시간 주문 목록 가져오기 (Vite Proxy 적용)
 const fetchOrders = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/orders');
+    const response = await fetch('/api/orders');
+    if (!response.ok) throw new Error('서버 응답 오류');
     const data = await response.json();
     orders.value = data;
   } catch (error) {
@@ -104,7 +105,7 @@ const groupedOrders = computed(() => {
 
 // 총 수량 및 총 가격 계산
 const totalCount = computed(() => orders.value.reduce((acc, cur) => acc + (Number(cur.quantity) || 1), 0));
-const totalPrice = computed(() => totalCount.value * 2000); // 잔당 2,000원 기준 예시
+const totalPrice = computed(() => totalCount.value * 2000);
 
 // 컴포넌트 마운트 시 3초마다 실시간 폴링 시작
 onMounted(() => {
@@ -116,33 +117,35 @@ onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
 
-// 백엔드 정산 API 연동 버튼 핸들러
+// 주문 마감 및 정산 요청 버튼 기능 구현
 const handleCloseOrder = async () => {
   if (confirm('주문을 마감하고 매터모스트로 정산 내용을 전송하시겠습니까?')) {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/close-orders', {
+      const response = await fetch('/api/close-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      const data = await res.json();
+      const data = await response.json();
       isClosed.value = true;
-      alert(data.reply || '주문 마감이 완료되었습니다.');
-    } catch (e) {
-      alert('정산 요청 중 오류가 발생했습니다.');
+      alert(data.reply || '주문 마감 및 정산 내용이 매터모스트에 전송되었습니다.');
+    } catch (error) {
+      console.error('주문 마감 처리 실패:', error);
+      alert('주문 마감 처리 중 오류가 발생했습니다.');
     }
   }
 };
 
-// 백엔드 배달 도착 알림 API 연동 버튼 핸들러
+// 배달 도착 알림 쏘기 버튼 기능 구현
 const handleArrival = async () => {
   try {
-    const res = await fetch('http://127.0.0.1:8000/api/delivery-arrival', {
+    const response = await fetch('/api/delivery-arrival', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    const data = await res.json();
-    alert(data.reply || '배달 도착 알림이 전송되었습니다.');
-  } catch (e) {
+    const data = await response.json();
+    alert(data.reply || '배달 도착 알림이 매터모스트에 전송되었습니다.');
+  } catch (error) {
+    console.error('배달 도착 알림 전송 실패:', error);
     alert('알림 전송 중 오류가 발생했습니다.');
   }
 };
