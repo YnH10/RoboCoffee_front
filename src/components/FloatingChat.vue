@@ -4,7 +4,7 @@ import { ref } from 'vue';
 const isOpen = ref(false);
 const input = ref('');
 const messages = ref([
-  { sender: 'bot', text: '안녕하세요 로보커피입니다. 주문을 입력해 주세요. (예: 5반 아메리카노 1잔)' }
+  { sender: 'bot', text: '안녕하세요 로보커피입니다. 주문을 입력해 주세요. (예: 아이스티 1잔)' }
 ]);
 
 const handleSend = async () => {
@@ -25,6 +25,32 @@ const handleSend = async () => {
     messages.value.push({ sender: 'bot', text: data.reply });
   } catch (error) {
     messages.value.push({ sender: 'bot', text: '서버 통신 오류가 발생했습니다.' });
+  }
+};
+
+const handleCloseOrders = async () => {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/close-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    messages.value.push({ sender: 'bot', text: data.reply });
+  } catch (error) {
+    messages.value.push({ sender: 'bot', text: '주문 마감 처리 중 오류가 발생했습니다.' });
+  }
+};
+
+const handleDeliveryArrival = async () => {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/delivery-arrival', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    messages.value.push({ sender: 'bot', text: data.reply });
+  } catch (error) {
+    messages.value.push({ sender: 'bot', text: '배달 도착 알림 전송 중 오류가 발생했습니다.' });
   }
 };
 </script>
@@ -52,8 +78,8 @@ const handleSend = async () => {
     <div
       v-if="isOpen"
       style="
-        width: 320px;
-        height: 450px;
+        width: 350px;
+        height: 480px;
         background-color: #fff;
         border: 1px solid #ccc;
         border-radius: 8px;
@@ -67,19 +93,35 @@ const handleSend = async () => {
         style="
           background-color: #333;
           color: #fff;
-          padding: 12px;
+          padding: 10px 12px;
           display: flex;
           justify-content: space-between;
           align-items: center;
         "
       >
-        <span>로보커피 주문 챗봇</span>
-        <button
-          @click="isOpen = false"
-          style="background: none; border: none; color: #fff; cursor: pointer; font-size: 16px;"
-        >
-          X
-        </button>
+        <span style="font-size: 14px; font-weight: bold;">로보커피 주문 챗봇</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button
+            @click="handleCloseOrders"
+            style="background-color: #ffc107; border: none; color: #000; padding: 4px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;"
+            title="주문 마감 및 매터모스트 정산 전송"
+          >
+            주문마감
+          </button>
+          <button
+            @click="handleDeliveryArrival"
+            style="background-color: #28a745; border: none; color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;"
+            title="매터모스트 배달 도착 알림 전송"
+          >
+            배달도착
+          </button>
+          <button
+            @click="isOpen = false"
+            style="background: none; border: none; color: #fff; cursor: pointer; font-size: 16px; margin-left: 4px;"
+          >
+            X
+          </button>
+        </div>
       </div>
 
       <div
@@ -117,7 +159,7 @@ const handleSend = async () => {
         <input
           type="text"
           v-model="input"
-          placeholder="예: 5반 아메리카노 1잔"
+          placeholder="예: 아이스티 1잔"
           style="flex: 1; padding: 10px; border: none; outline: none; font-size: 14px;"
         />
         <button
