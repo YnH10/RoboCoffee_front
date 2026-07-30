@@ -4,7 +4,7 @@
     <!-- Header 영역 -->
     <header class="header">
       <div>
-        <h1 class="title-large">Coffy Manager ☕</h1>
+        <h1 class="title-large">로보커피 ☕</h1>
         <p class="text-sub mt-1">싸피 광주 16기 컴포즈커피 주문 현황</p>
       </div>
       <div class="status-badge" :class="{ 'is-closed': isClosed }">
@@ -27,10 +27,13 @@
 
       <div class="action-buttons">
         <button class="btn btn-primary" @click="handleCloseOrder">
-          🔒 주문 마감 및 정산 요청
+          주문 마감 및 정산 요청
         </button>
         <button class="btn btn-secondary" @click="handleArrival">
-          🛵 배달 도착 알림 쏘기
+          배달 도착 알림 쏘기
+        </button>
+        <button class="btn btn-danger" @click="handleResetOrders">
+          주문 목록 초기화
         </button>
       </div>
     </section>
@@ -38,7 +41,7 @@
     <div class="grid-layout">
       <!-- 취합 리스트 (배달앱 주문용) -->
       <section class="card">
-        <h2 class="title-medium mb-4">📋 배달앱 주문용 취합 리스트 (실시간)</h2>
+        <h2 class="title-medium mb-4">📋 배달앱 주문용 취합 리스트</h2>
         <div v-if="groupedOrders.length === 0" class="empty-text">접수된 주문이 없습니다.</div>
         <ul v-else class="grouped-list">
           <li v-for="(item, index) in groupedOrders" :key="index" class="grouped-item">
@@ -47,7 +50,6 @@
             </div>
             <div class="item-stats">
               <span class="item-count">{{ item.count }}잔</span>
-              <button class="btn-check">✓</button>
             </div>
           </li>
         </ul>
@@ -55,11 +57,10 @@
 
       <!-- 개별 주문 내역 -->
       <section class="card">
-        <h2 class="title-medium mb-4">👥 팀원 개별 주문 내역 (실시간)</h2>
+        <h2 class="title-medium mb-4">👥 팀원 개별 주문 내역</h2>
         <div v-if="orders.length === 0" class="empty-text">주문 내역이 없습니다.</div>
         <ul v-else class="user-list">
           <li v-for="(user, index) in orders" :key="index" class="user-item">
-            <div class="user-avatar">{{ user.user_name ? user.user_name.charAt(0) : '?' }}</div>
             <div class="user-info">
               <div class="user-name">{{ user.user_name }}</div>
               <div class="user-menu">{{ user.menu }} (수량: {{ user.quantity }}잔)</div>
@@ -79,7 +80,7 @@ const isClosed = ref(false);
 const orders = ref([]);
 let timer = null;
 
-// 백엔드 API에서 실시간 주문 목록 가져오기 (Vite Proxy 적용)
+// 백엔드 API에서 주문 목록 가져오기 (Vite Proxy 적용)
 const fetchOrders = async () => {
   try {
     const response = await fetch('/api/orders');
@@ -107,7 +108,7 @@ const groupedOrders = computed(() => {
 const totalCount = computed(() => orders.value.reduce((acc, cur) => acc + (Number(cur.quantity) || 1), 0));
 const totalPrice = computed(() => totalCount.value * 2000);
 
-// 컴포넌트 마운트 시 3초마다 실시간 폴링 시작
+// 컴포넌트 마운트 시 폴링 시작
 onMounted(() => {
   fetchOrders();
   timer = setInterval(fetchOrders, 3000);
@@ -147,6 +148,25 @@ const handleArrival = async () => {
   } catch (error) {
     console.error('배달 도착 알림 전송 실패:', error);
     alert('알림 전송 중 오류가 발생했습니다.');
+  }
+};
+
+// 주문 목록 초기화 버튼 기능 구현
+const handleResetOrders = async () => {
+  if (confirm('정말로 모든 주문 목록을 초기화하시겠습니까? 데이터베이스의 기록이 삭제됩니다.')) {
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      orders.value = [];
+      isClosed.value = false;
+      alert(data.reply || '주문 목록이 초기화되었습니다.');
+    } catch (error) {
+      console.error('주문 목록 초기화 실패:', error);
+      alert('초기화 중 오류가 발생했습니다.');
+    }
   }
 };
 </script>
@@ -233,6 +253,11 @@ const handleArrival = async () => {
   color: #0284C7;
 }
 .btn-secondary:hover { filter: brightness(0.95); }
+.btn-danger {
+  background-color: #FEE2E2;
+  color: #EF4444;
+}
+.btn-danger:hover { filter: brightness(0.95); }
 .grid-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -251,23 +276,7 @@ ul { list-style: none; padding: 0; margin: 0; }
 .menu-name { font-size: 17px; font-weight: 600; }
 .item-stats { display: flex; align-items: center; gap: 16px; }
 .item-count { font-size: 18px; font-weight: 700; color: #2563EB; }
-.btn-check {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 1px solid #E5E7EB;
-  background: white;
-  cursor: pointer;
-  color: #6B7280;
-}
-.btn-check:hover { background: #F9FAFB; }
-.user-avatar {
-  width: 40px; height: 40px;
-  background-color: #FACC15;
-  border-radius: 50%;
-  display: flex; justify-content: center; align-items: center;
-  font-weight: 700; font-size: 15px;
-}
-.user-info { flex: 1; margin-left: 16px; }
+.user-info { flex: 1; }
 .user-name { font-weight: 600; font-size: 16px; }
 .user-menu { font-size: 14px; color: #6B7280; margin-top: 2px; }
 .user-price { font-weight: 700; font-size: 16px; }
