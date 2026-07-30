@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue';
+import axios from 'axios';
 
+const NODE_URL = import.meta.env.VITE_NODE_URL;
 const isOpen = ref(false);
 const input = ref('');
 const messages = ref([
@@ -9,21 +11,26 @@ const messages = ref([
 
 const handleSend = async () => {
   if (!input.value.trim()) return;
-
+  
   const userMessage = input.value;
   messages.value.push({ sender: 'user', text: userMessage });
   input.value = '';
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_name: '웹사장님', text: userMessage })
+    // 8000번 Node.js 서버로 요청
+    const res = await axios.post(`http://localhost:8000/api/chat/recommend`, {
+      userId: 'user',
+      preference: userMessage
     });
-    const data = await response.json();
 
-    messages.value.push({ sender: 'bot', text: data.reply });
+    if (res.data.success) {
+      // 👈 res.data.answer 로 수신
+      messages.value.push({ sender: 'bot', text: res.data.answer });
+    } else {
+      messages.value.push({ sender: 'bot', text: '답변을 가져오지 못했습니다.' });
+    }
   } catch (error) {
+    console.error('[Vue] Node 서버 통신 에러:', error);
     messages.value.push({ sender: 'bot', text: '서버 통신 오류가 발생했습니다.' });
   }
 };
