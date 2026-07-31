@@ -1,20 +1,38 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import axios from 'axios';
 
 const NODE_URL = import.meta.env.VITE_NODE_URL;
 const isOpen = ref(false);
 const input = ref('');
+const isLoading = ref(false); // 👈 로딩 상태 추가
+const chatContainer = ref(null); // 👈 스크롤 영역 참조 추가
+
 const messages = ref([
   { sender: 'bot', text: '안녕하세요 로보커피입니다. 주문을 입력해 주세요. (예: 아이스티 1잔)' }
 ]);
 
+// 채팅창을 최하단으로 스크롤하는 함수
+const scrollToBottom = async () => {
+  await nextTick(); // DOM 업데이트 완료 후 실행
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+};
+
 const handleSend = async () => {
-  if (!input.value.trim()) return;
+  if (!input.value.trim() || isLoading.value) return;
   
   const userMessage = input.value;
   messages.value.push({ sender: 'user', text: userMessage });
   input.value = '';
+  
+  // 사용자 메시지 추가 후 스크롤 하단 이동
+  scrollToBottom();
+
+  // 로딩 시작
+  isLoading.value = true;
+  scrollToBottom(); // 로딩 말풍선 표시 후 스크롤 하단 이동
 
   try {
     // 8000번 Node.js 서버로 요청
@@ -24,7 +42,6 @@ const handleSend = async () => {
     });
 
     if (res.data.success) {
-      // 👈 res.data.answer 로 수신
       messages.value.push({ sender: 'bot', text: res.data.answer });
     } else {
       messages.value.push({ sender: 'bot', text: '답변을 가져오지 못했습니다.' });
@@ -32,6 +49,10 @@ const handleSend = async () => {
   } catch (error) {
     console.error('[Vue] Node 서버 통신 에러:', error);
     messages.value.push({ sender: 'bot', text: '서버 통신 오류가 발생했습니다.' });
+  } finally {
+    // 로딩 종료 및 스크롤 하단 이동
+    isLoading.value = false;
+    scrollToBottom();
   }
 };
 
@@ -45,6 +66,8 @@ const handleCloseOrders = async () => {
     messages.value.push({ sender: 'bot', text: data.reply });
   } catch (error) {
     messages.value.push({ sender: 'bot', text: '주문 마감 처리 중 오류가 발생했습니다.' });
+  } finally {
+    scrollToBottom();
   }
 };
 
@@ -58,6 +81,8 @@ const handleDeliveryArrival = async () => {
     messages.value.push({ sender: 'bot', text: data.reply });
   } catch (error) {
     messages.value.push({ sender: 'bot', text: '배달 도착 알림 전송 중 오류가 발생했습니다.' });
+  } finally {
+    scrollToBottom();
   }
 };
 </script>
@@ -131,7 +156,9 @@ const handleDeliveryArrival = async () => {
         </div>
       </div>
 
+      <!-- ref="chatContainer" 연결 -->
       <div
+        ref="chatContainer"
         style="
           flex: 1;
           padding: 12px;
@@ -157,6 +184,23 @@ const handleDeliveryArrival = async () => {
         >
           {{ msg.text }}
         </div>
+
+        <!-- 답변 생성 중 로딩 표시 -->
+        <div
+          v-if="isLoading"
+          style="
+            align-self: flex-start;
+            background-color: #f1f1f0;
+            color: #666;
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+            font-size: 14px;
+            font-style: italic;
+          "
+        >
+          답변 생성 중 입니다....
+        </div>
       </div>
 
       <form
@@ -166,12 +210,20 @@ const handleDeliveryArrival = async () => {
         <input
           type="text"
           v-model="input"
+          :disabled="isLoading"
           placeholder="예: 아이스티 1잔"
           style="flex: 1; padding: 10px; border: none; outline: none; font-size: 14px;"
         />
         <button
           type="submit"
-          style="background-color: #007bff; color: #fff; border: none; padding: 0 16px; cursor: pointer;"
+          :disabled="isLoading"
+          :style="{
+            backgroundColor: isLoading ? '#aaa' : '#007bff',
+            color: '#fff',
+            border: 'none',
+            padding: '0 16px',
+            cursor: isLoading ? 'not-allowed' : 'pointer'
+          }"
         >
           전송
         </button>
